@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1.0, user-scalable=no, width=device-width">
+<title>佛山租房小区地图</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+#container{width:100%;height:100vh;background:#f5f5f5}
+#panel{position:absolute;top:2vh;right:10px;width:480px;background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.15);z-index:999;max-height:96vh;display:flex;flex-direction:column}
+#panel-header{padding:12px 16px;border-bottom:1px solid #eee;flex-shrink:0}
+#panel-header h3{font-size:18px;color:#333;margin:0}
+#panel-header .stats{font-size:15px;color:#999;margin-top:4px}
+#panel-filters{padding:8px 16px;border-bottom:1px solid #eee;flex-shrink:0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.filter-btn{padding:4px 10px;border-radius:12px;border:1px solid #ddd;background:#fff;font-size:15px;cursor:pointer;transition:all .2s}
+.filter-btn.active{background:#1890ff;color:#fff;border-color:#1890ff}
+#show-excluded{margin-left:auto;font-size:15px;color:#666;cursor:pointer;display:flex;align-items:center;gap:4px}
+#panel-list{flex:1;overflow-y:auto;padding:0}
+.community-item{border-bottom:1px solid #f5f5f5;transition:background .2s}
+.community-item:hover{background:#f0f8ff}
+.community-item.active{background:#e6f4ff}
+.community-header{padding:10px 16px;cursor:pointer;position:relative;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.community-header:hover{background:#f0f8ff}
+.community-item.active .community-header{background:#e6f4ff}
+.community-item.highlight{animation:highlight-pulse 2s ease-out}
+@keyframes highlight-pulse{0%{background:#fff7e6}100%{background:transparent}}
+.community-info{flex:1;min-width:0}
+.community-name{font-size:21px;font-weight:500;color:#333;display:flex;align-items:center;gap:6px}
+.community-meta{font-size:19px;color:#999;margin-top:2px}
+.community-actions{display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:8px}
+.btn-evaluate{font-size:16px;padding:6px 10px;border-radius:10px;border:1px solid #1890ff;background:#1890ff;color:#fff;cursor:pointer;transition:all .2s}
+.btn-evaluate:hover{background:#096dd9;border-color:#096dd9;color:#fff}
+.community-listings{display:none;padding:4px 8px 4px 16px;background:#fafafa;border-top:1px solid #eee}
+.community-item.active .community-listings{display:block}
+.listing-item{padding:10px 12px;font-size:18px;border-left:2px solid #ddd;margin:4px 0;display:flex;justify-content:space-between;align-items:center;gap:8px;background:#fff;border-radius:4px;cursor:pointer;transition:background .1s}
+.listing-item:hover{background:#f0f8ff}
+.listing-item.status-收录{border-left-color:#1890ff;background:#e6f4ff}
+.listing-item.status-等待图片{border-left-color:#722ed1;background:#f9f0ff}
+.listing-item.status-考虑中{border-left-color:#fa8c16;background:#fff7e6}
+.listing-item.status-已看{border-left-color:#52c41a;background:#f6ffed}
+.listing-item.status-排除{border-left-color:#ff4d4f;background:#fff1f0;opacity:.6}
+.listing-item.status-已下架{border-left-color:#8c8c8c;background:#f5f5f5;opacity:.65}
+.listing-info{flex:1;min-width:0}
+.listing-title{color:#333;font-size:15px;line-height:1.4;}word-break:break-all}
+.listing-meta{color:#999;font-size:13px;margin-top:4px;}display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.listing-status-tag{font-size:16px;padding:1px 6px;border-radius:12px;white-space:nowrap}
+.tag-收录{background:#e6f4ff;color:#1890ff}
+.tag-等待图片{background:#f9f0ff;color:#722ed1}
+.tag-考虑中{background:#fff7e6;color:#fa8c16}
+.tag-已看{background:#f6ffed;color:#52c41a}
+.tag-排除{background:#fff1f0;color:#ff4d4f}
+.tag-已下架{background:#f0f0f0;color:#8c8c8c}
+.tag-price-drop{background:#fff1f0;color:#cf1322;border:1px solid #ffa39e;font-size:14px;padding:1px 6px;border-radius:10px;font-weight:bold;margin-left:4px;display:inline-flex;align-items:center}
+.price-history-timeline{font-size:14px;color:#666;margin-top:4px;padding:4px 8px;background:#f9f9f9;border-radius:6px;border-left:2px solid #fa8c16}
+
+.new-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff4d4f;flex-shrink:0}
+.marker-new{position:absolute;top:-4px;right:-4px;width:10px;height:10px;border-radius:50%;background:#ff4d4f;border:2px solid #fff;z-index:1}
+#loading{text-align:center;padding:20px;color:#999;font-size:16px}
+#error-msg{text-align:center;padding:20px;color:#ff4d4f;font-size:16px}
+
+
+.listing-main{flex:1;min-width:0}
+.listing-row1{color:#333;font-size:18px;line-height:1.5;word-break:break-all}
+.listing-row2{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:17px;color:#999;flex-wrap:wrap}
+.listing-actions{display:flex;align-items:center;flex-shrink:0}
+
+
+/* Zoom controls */
+.zoom-control{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);z-index:998;display:flex;flex-direction:row;gap:12px}
+.zoom-btn{width:88px;height:88px;border-radius:12px;background:rgba(255,255,255,0.85);border:1px solid rgba(0,0,0,0.1);box-shadow:0 2px 8px rgba(0,0,0,0.1);font-size:32px;color:#333;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.zoom-btn:hover{background:rgba(255,255,255,1);box-shadow:0 2px 12px rgba(0,0,0,0.15)}
+.zoom-btn:active{background:#e6f4ff}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;justify-content:center;align-items:center}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:18px;width:570px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.2);display:flex;flex-direction:column;min-height:840px;box-sizing:border-box}
+.modal-header{padding:24px 30px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center}
+.modal-header h4{font-size:22px;color:#333;margin:0}
+.modal-close{font-size:36px;color:#999;cursor:pointer;line-height:1}
+.modal-close:hover{color:#333}
+.modal-body{padding:24px 30px}
+.modal-body > div:first-child{font-size:20px;color:#666;margin-bottom:9px}
+.status-options{display:flex;flex-wrap:wrap;gap:15px;margin-bottom:21px}
+.status-opt{padding:12px 24px;border-radius:30px;border:2px solid #ddd;background:#fff;cursor:pointer;font-size:20px;transition:all .2s;flex:1 1 30%;text-align:center;box-sizing:border-box}
+.status-opt.selected{border-color:#1890ff;background:#e6f4ff;color:#1890ff}
+.status-opt[data-status="等待图片"].selected{border-color:#722ed1;background:#f9f0ff;color:#722ed1}
+.status-opt[data-status="考虑中"].selected{border-color:#fa8c16;background:#fff7e6;color:#fa8c16}
+.status-opt[data-status="已看"].selected{border-color:#52c41a;background:#f6ffed;color:#52c41a}
+.status-opt[data-status="排除"].selected{border-color:#ff4d4f;background:#fff1f0;color:#ff4d4f}
+.status-opt[data-status="已下架"].selected{border-color:#8c8c8c;background:#f0f0f0;color:#8c8c8c}
+.quick-tags{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px}
+.tag-opt{padding:8px 18px;border-radius:24px;border:1px solid #ddd;background:#fff;cursor:pointer;font-size:20px;transition:all .2s;user-select:none}
+.tag-opt.active{border-color:#1890ff;background:#e6f4ff;color:#1890ff}
+.modal-body textarea{width:100%;height:105px;border:1px solid #ddd;border-radius:18px;padding:12px;font-size:20px;resize:vertical;font-family:inherit;box-sizing:border-box}
+.modal-footer{padding:18px 30px;border-top:1px solid #eee;display:flex;justify-content:flex-end;gap:12px;margin-top:auto}
+.btn{padding:11px 30px;border-radius:9px;font-size:20px;cursor:pointer;border:none}
+.btn-cancel{background:#f5f5f5;color:#666}
+.btn-cancel:hover{background:#e8e8e8}
+.btn-save{background:#1890ff;color:#fff}
+.btn-save:hover{background:#096dd9}
+</style>
+</head>
+<body>
+<div id="container"></div>
+<div class="zoom-control">
+  <button class="zoom-btn" onclick="zoomIn()" title="放大">+</button>
+  <button class="zoom-btn" onclick="zoomOut()" title="缩小">−</button>
+</div>
+<div id="panel">
+  <div id="panel-header">
+    <h3>小区列表</h3>
+    <div class="stats" id="stats">加载中...</div>
+  </div>
+  <div id="panel-filters">
+    <button class="filter-btn active" data-status="收录">收录</button>
+    <button class="filter-btn" data-status="考虑中">考虑中</button>
+    <button class="filter-btn" data-status="等待图片">等待图片</button>
+    <button class="filter-btn" data-status="已看">已看</button>
+    <button class="filter-btn" data-status="排除">排除</button>
+    <button class="filter-btn" data-status="已下架">已下架</button>
+    <label id="show-excluded"><input type="checkbox" id="toggle-excluded"> 显示已排除/已下架</label>
+  </div>
+  <div id="panel-list"><div id="loading">加载中...</div></div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h4 id="modal-title">评价</h4>
+      <span class="modal-close" onclick="closeModal()">&times;</span>
+    </div>
+    <div class="modal-body">
+      <div>状态</div>
+      <div class="status-options">
+        <div class="status-opt" data-status="收录" onclick="selectStatus(this)">收录</div>
+        <div class="status-opt" data-status="等待图片" onclick="selectStatus(this)">等待图片</div>
+        <div class="status-opt" data-status="考虑中" onclick="selectStatus(this)">考虑中</div>
+        <div class="status-opt" data-status="已看" onclick="selectStatus(this)">已看</div>
+        <div class="status-opt" data-status="排除" onclick="selectStatus(this)">排除</div>
+        <div class="status-opt" data-status="已下架" onclick="selectStatus(this)">已下架</div>
+      </div>
+      <div style="margin:21px 0 9px;font-size:20px;color:#666">快速标签</div>
+      <div class="quick-tags">
+        <div class="tag-opt" data-tag="太远" onclick="toggleQuickTag(this)">太远</div>
+        <div class="tag-opt" data-tag="多家具" onclick="toggleQuickTag(this)">多家具</div>
+        <div class="tag-opt" data-tag="旧家具" onclick="toggleQuickTag(this)">旧家具</div>
+        <div class="tag-opt" data-tag="离地铁站远" onclick="toggleQuickTag(this)">离地铁站远</div>
+        <div class="tag-opt" data-tag="破旧" onclick="toggleQuickTag(this)">破旧</div>
+        <div class="tag-opt" data-tag="价格高" onclick="toggleQuickTag(this)">价格高</div>
+        <div class="tag-opt" data-tag="下架" onclick="toggleQuickTag(this)">下架</div>
+        <div class="tag-opt" data-tag="失效" onclick="toggleQuickTag(this)">失效</div>
+        <div class="tag-opt" data-tag="咨询中" onclick="toggleQuickTag(this)">咨询中</div>
+        <div class="tag-opt" data-tag="已讨论" onclick="toggleQuickTag(this)">已讨论</div>
+        <div class="tag-opt" data-tag="低楼层" onclick="toggleQuickTag(this)">低楼层</div>
+      </div>
+      <div style="margin:21px 0 9px;font-size:20px;color:#666">备注（选填）</div>
+      <textarea id="modal-notes" placeholder="输入备注信息..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" onclick="closeModal()">取消</button>
+      <button class="btn btn-save" onclick="saveModal()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 高德地图 JS API: 支持通过 URL 参数 ?amap_key=YOUR_KEY 传入，或直接填写你申请的 Key -->
+<script>
+  (function() {
+    var params = new URLSearchParams(window.location.search);
+    var key = params.get('amap_key') || 'YOUR_AMAP_KEY';
+    var script = document.createElement('script');
+    script.src = 'https://webapi.amap.com/maps?v=1.4.15&key=' + encodeURIComponent(key);
+    document.head.appendChild(script);
+  })();
+</script>
+<script>
+var communities = {};
+var IS_CLOUD = false;
+var GH = null;
+var listings = [];
+var map, infoWindow;
+var activeStatuses = new Set(['收录']);
+var showExcluded = false;
+var markers = {};
+var modalTarget = null;
+var selectedCommunity = null;
+var STATUS_ORDER = ['收录', '考虑中', '等待图片', '已看', '排除', '已下架'];
+var NOTE_STATUSES = ['考虑中', '已看'];
+
+function cleanName(name) {
+  return name.replace(/^整租[·\s]*/g, '');
+}
+
+function isNewToday(dateStr) {
+  if (!dateStr) return false;
+  try {
+    var d = new Date(dateStr);
+    var now = new Date();
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+  } catch(e) { return false; }
+}
+
+function getStatusCounts(communityName) {
+  var items = listings.filter(function(l) { return cleanName(l.community) === communityName; });
+  var counts = {};
+  STATUS_ORDER.forEach(function(s) { counts[s] = 0; });
+  items.forEach(function(l) { counts[l.status] = (counts[l.status] || 0) + 1; });
+  return {counts: counts, items: items};
+}
+
+function hasNewTodayCheck(communityName) {
+  var result = getStatusCounts(communityName);
+  return result.items.some(function(l) { return isNewToday(l.collectedAt); });
+}
+
+function renderMarkers(fitView) {
+  for (var key in markers) { markers[key].setMap(null); }
+  markers = {};
+  var bounds = [];
+  var keys = Object.keys(communities);
+  for (var i = 0; i < keys.length; i++) {
+    var name = keys[i];
+    var info = communities[name];
+    var lng = info ? (info.longitude || info.lng) : null;
+    var lat = info ? (info.latitude || info.lat) : null;
+    if (!lng || !lat) continue;
+    var result = getStatusCounts(name);
+    var counts = result.counts;
+    var hasVisible = false;
+    for (var s in counts) { if (activeStatuses.has(s) && counts[s] > 0) hasVisible = true; }
+    var hasExcluded = (counts['排除'] > 0) || (counts['已下架'] > 0);
+    if (!hasVisible && !(showExcluded && hasExcluded)) continue;
+    var pos = [lng, lat];
+    bounds.push(pos);
+    var displayCount = 0;
+    if (activeStatuses.has('排除')) { displayCount = result.items.length; }
+    else { result.items.forEach(function(l) { if (activeStatuses.has(l.status)) displayCount++; }); }
+    var isNew = hasNewTodayCheck(name);
+    var markerHtml = buildMarkerHtml(name, displayCount, isNew);
+    (function(n, p) {
+      var marker = new AMap.Marker({
+        position: p,
+        content: markerHtml,
+        offset: getMarkerOffset(n)
+      });
+      marker.on('click', function() {
+        scrollToCommunity(n);
+      });
+      marker.setMap(map);
+      markers[n] = marker;
+    })(name, pos);
+  }
+  if (fitView !== false && bounds.length > 0) { map.setFitView(null, false, [60, 60, 60, 60]); }
+}
+
+function scrollToCommunity(name) {
+  // Close all others
+  selectedCommunity = name;
+  var allItems = document.querySelectorAll('.community-item');
+  for (var i = 0; i < allItems.length; i++) {
+    allItems[i].classList.remove('active');
+  }
+  var el = document.querySelector('.community-item[data-name="' + name + '"]');
+  if (el) {
+    el.classList.add('active');
+    // Scroll to top of list
+    var listContainer = document.getElementById('panel-list');
+    var offsetTop = el.offsetTop - listContainer.offsetTop;
+    listContainer.scrollTop = offsetTop;
+    // Highlight pulse
+    el.classList.add('highlight');
+    setTimeout(function() { el.classList.remove('highlight'); }, 2000);
+    renderMarkers(false);
+  }
+}
+
+function centerMapOnCommunity(name) {
+  var info = communities[name];
+  var lng = info ? (info.longitude || info.lng) : null;
+  var lat = info ? (info.latitude || info.lat) : null;
+  if (lng && lat) {
+    map.setCenter([lng, lat]);
+    map.setZoom(14);
+  }
+}
+
+function renderList() {
+  var listEl = document.getElementById('panel-list');
+  var entries = Object.keys(communities).map(function(k) { return [k, communities[k]]; }).sort(function(a, b) { return b[1].count - a[1].count; });
+  var html = '';
+  for (var i = 0; i < entries.length; i++) {
+    var name = entries[i][0];
+    var info = entries[i][1];
+    var result = getStatusCounts(name);
+    if (!communityHasVisible(name, result)) continue;
+    html += buildCommunityHtml(name, result);
+  }
+  listEl.innerHTML = html || '<div id="loading">无匹配小区</div>';
+}
+
+function communityHasVisible(name, result) {
+  result = result || getStatusCounts(name);
+  var counts = result.counts;
+  var hasVisible = false;
+  for (var s in counts) { if (activeStatuses.has(s) && counts[s] > 0) hasVisible = true; }
+  var hasExcluded = (counts['排除'] > 0) || (counts['已下架'] > 0);
+  return hasVisible || (showExcluded && hasExcluded);
+}
+
+function buildCommunityHtml(name, result) {
+  var info = communities[name];
+  result = result || getStatusCounts(name);
+  var counts = result.counts;
+  var items = result.items;
+  var displayItems = items.filter(function(l) { return activeStatuses.has(l.status); });
+  if (showExcluded) { displayItems = items.filter(function(l) { return activeStatuses.has(l.status) || l.status === '排除' || l.status === '已下架'; }); }
+  var addr = info.formatted_address ? info.formatted_address.replace(/^广东省佛山市/, '').substring(0, 24) : '';
+  var html = '<div class="community-item" data-name="' + name + '">';
+  html += '<div class="community-header" onclick="toggleCommunity(\'' + name.replace(/'/g, "\\'") + '\')">';
+  html += '<div class="community-info">';
+  html += '<div class="community-name">' + name + '</div>';
+  html += '<div class="community-meta">' + (info.district || '佛山') + ' · ' + addr + '</div>';
+  html += '<div class="community-meta" style="color:#1890ff;">';
+  var countStrs = [];
+  STATUS_ORDER.forEach(function(s) { if (counts[s] > 0) countStrs.push(s + ' ' + counts[s] + '套'); });
+  html += countStrs.join(' · ') + '</div>';
+  html += '</div>';
+  html += '<div class="community-actions">';
+  html += '<button class="btn-evaluate" onclick="event.stopPropagation();openModal(\'community\',\'' + name.replace(/'/g, "\\'") + '\')">评价</button>';
+  html += '</div></div>';
+  html += '<div class="community-listings">';
+  for (var j = 0; j < displayItems.length; j++) {
+    var l = displayItems[j];
+    var isNew = isNewToday(l.collectedAt);
+    var clickHandler = 'onclick="window.open(\'' + l.url + '\',\'_blank\')"';
+    
+    // 降价徽章
+    var priceDropHtml = '';
+    if (l.price_drop) {
+      priceDropHtml = '<span class="tag-price-drop">📉 降 ' + l.price_drop + '元</span>';
+    } else if (l.relist_info && l.relist_info.price_diff < 0) {
+      priceDropHtml = '<span class="tag-price-drop">📉 降 ' + Math.abs(l.relist_info.price_diff) + '元</span>';
+    } else if (l.relist_info && l.relist_info.previous_price) {
+      var oldP = parseInt(l.relist_info.previous_price);
+      var curP = parseInt(l.price);
+      if (oldP && curP && curP < oldP) {
+        priceDropHtml = '<span class="tag-price-drop">📉 降 ' + (oldP - curP) + '元</span>';
+      }
+    }
+    
+    // 价格变动时序线
+    var historyHtml = '';
+    if (l.priceHistory && l.priceHistory.length > 1) {
+      var histStr = l.priceHistory.map(function(ph) {
+        var dateShort = ph.changedAt ? ph.changedAt.slice(5, 10) : '';
+        return ph.price + (dateShort ? ' (' + dateShort + ')' : '');
+      }).join(' ➔ ');
+      historyHtml = '<div class="price-history-timeline">💰 价格轨迹: ' + escHtml(histStr) + '</div>';
+    }
+
+    html += '<div class="listing-item status-' + l.status + '" data-id="' + l.id + '" ' + clickHandler + '>';
+    html += '<div class="listing-main">';
+    html += '<div class="listing-row1">' + (l.houseType || '') + ' · ' + (l.area || '') + ' · ' + (l.price || '') + priceDropHtml + '</div>';
+    html += '<div class="listing-row2">';
+    if (isNew) html += '<span class="new-dot"></span>';
+    html += '<span>' + (l.collectedAt ? l.collectedAt.slice(0,10) : '') + '</span>';
+    html += '<span class="listing-status-tag tag-' + l.status + '">' + l.status + '</span>';
+    html += '</div>';
+    if (historyHtml) html += historyHtml;
+    html += '</div>';
+    html += '<div class="listing-actions"><button class="btn-evaluate" style="font-size:15px;height:48px;line-height:46px;padding:0 12px;box-sizing:border-box;" onclick="event.stopPropagation();openModal(\'listing\',\'' + l.id + '\')">评价</button></div>';
+    html += '</div>';
+  }
+  html += '</div></div>';
+  return html;
+}
+
+function refreshListingLocal(commName, id) {
+  var result = getStatusCounts(commName);
+  var grid = document.getElementById('panel-list');
+  var item = grid.querySelector('.community-item[data-name="' + commName.replace(/'/g, "\\'") + '"]');
+  if (!item) return;
+  var listingEl = item.querySelector('.listing-item[data-id="' + id + '"]');
+  var stillVisible = isListingVisible(id, result);
+  if (listingEl) {
+    if (stillVisible) {
+      // 仍符合筛选：仅更新该房源的状态样式，不重建小区项，保留展开状态
+      var l = null;
+      for (var i = 0; i < listings.length; i++) { if (listings[i].id === id) { l = listings[i]; break; } }
+      if (l) {
+        var cls = 'listing-item status-' + l.status;
+        listingEl.className = cls;
+        var tag = item.querySelector('.listing-status-tag');
+        if (tag) {
+          tag.className = 'listing-status-tag tag-' + l.status;
+          tag.textContent = l.status;
+        }
+      }
+    } else {
+      // 不再符合筛选：只移除该房源一项
+      listingEl.parentNode.removeChild(listingEl);
+    }
+  }
+  // 若小区已无任何可见房源，移除整个小区项；否则保持展开状态不动
+  if (item && !communityHasVisible(commName)) {
+    item.parentNode.removeChild(item);
+  }
+  updateMarkerLocal(commName);
+  updateStats();
+}
+
+function isListingVisible(id, result) {
+  var l = null;
+  for (var i = 0; i < listings.length; i++) { if (listings[i].id === id) { l = listings[i]; break; } }
+  if (!l) return false;
+  if (activeStatuses.has(l.status)) return true;
+  return !!(showExcluded && l.status === '排除');
+}
+
+function refreshCommunityLocal(name) {
+  // 仅针对单个小区局部更新列表项与地图标记，不重建整个列表/标记，保留滚动位置与焦点
+  var result = getStatusCounts(name);
+  var listEl = document.getElementById('panel-list');
+  var existing = document.querySelector('.community-item[data-name="' + name.replace(/'/g, "\\'") + '"]');
+  if (!communityHasVisible(name, result)) {
+    if (existing) existing.parentNode.removeChild(existing);
+  } else {
+    var html = buildCommunityHtml(name, result);
+    if (existing) { existing.outerHTML = html; }
+    else { listEl.insertAdjacentHTML('beforeend', html); }
+  }
+  updateMarkerLocal(name);
+  updateStats();
+}
+
+function updateMarkerLocal(name) {
+  var info = communities[name];
+  var lng = info ? (info.longitude || info.lng) : null;
+  var lat = info ? (info.latitude || info.lat) : null;
+  if (!lng || !lat) return;
+  if (markers[name]) { markers[name].setMap(null); delete markers[name]; }
+  var result = getStatusCounts(name);
+  if (!communityHasVisible(name, result)) return;
+  var counts = result.counts;
+  var pos = [lng, lat];
+  var displayCount = 0;
+  if (activeStatuses.has('排除')) { displayCount = result.items.length; }
+  else { result.items.forEach(function(l) { if (activeStatuses.has(l.status)) displayCount++; }); }
+  var markerHtml = buildMarkerHtml(name, displayCount, communityHasNew(name));
+  var marker = new AMap.Marker({ position: pos, content: markerHtml, offset: getMarkerOffset(name) });
+  marker.on('click', function() { scrollToCommunity(name); });
+  marker.setMap(map);
+  markers[name] = marker;
+}
+
+function buildMarkerHtml(name, displayCount, isNew) {
+  var dim = getMarkerDimension(name);
+  var markerColor = dim.selected ? '#ff4d4f' : '#1890ff';
+  var markerSize = dim.size + 'px';
+  var fontSize = dim.fontSize + 'px';
+  var notes = getMarkerNotes(name);
+  var html = '<div style="position:relative;display:flex;align-items:flex-start;gap:6px;">';
+  html += '<div style="position:relative;display:inline-block;flex-shrink:0;">';
+  html += '<div style="background:' + markerColor + ';color:#fff;border-radius:50%;width:' + markerSize + ';height:' + markerSize + ';display:flex;align-items:center;justify-content:center;font-size:' + fontSize + ';font-weight:600;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.2);cursor:pointer;">' + displayCount + '</div>';
+  if (isNew) { html += '<div class="marker-new"></div>'; }
+  html += '</div>';
+  if (notes.length > 0) {
+    html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+    for (var i = 0; i < notes.length; i++) {
+      var c = statusColor(notes[i].status);
+      html += '<div style="background:rgba(255,255,255,0.96);border:1px solid ' + c + ';border-left:4px solid ' + c + ';color:#333;border-radius:6px;padding:5px 12px;font-size:22px;line-height:1.25;box-shadow:0 2px 6px rgba(0,0,0,0.18);cursor:pointer;white-space:nowrap;">' + escHtml(notes[i].text) + '</div>';
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function getMarkerDimension(name) {
+  var isSelected = (name === selectedCommunity);
+  return {
+    selected: isSelected,
+    size: isSelected ? 68 : 45,
+    fontSize: isSelected ? 24 : 18
+  };
+}
+
+function getMarkerOffset(name) {
+  var d = getMarkerDimension(name);
+  var half = d.size / 2;
+  return new AMap.Pixel(-half, -half);
+}
+
+function statusColor(status) {
+  switch (status) {
+    case '考虑中': return '#fa8c16';
+    case '已看': return '#52c41a';
+    case '等待图片': return '#722ed1';
+    case '排除': return '#ff4d4f';
+    case '已下架': return '#8c8c8c';
+    default: return '#1890ff';
+  }
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function getMarkerNotes(name) {
+  var result = getStatusCounts(name);
+  var notes = [];
+  result.items.forEach(function(l) {
+    if (NOTE_STATUSES.indexOf(l.status) < 0) return;
+    if (!activeStatuses.has(l.status)) return;
+    var n = (l.notes || '').replace(/\s+/g, ' ').trim();
+    if (n && n !== '手机APP自动化采集') notes.push({ status: l.status, text: n });
+  });
+  return notes;
+}
+
+function communityHasNew(name) {
+  return getStatusCounts(name).items.some(function(l) { return isNewToday(l.collectedAt); });
+}
+
+function toggleCommunity(name) {
+  var el = document.querySelector('.community-item[data-name="' + name + '"]');
+  if (!el) return;
+  if (el.classList.contains('active')) {
+    el.classList.remove('active');
+  } else {
+    // Close others
+    var allItems = document.querySelectorAll('.community-item');
+    for (var i = 0; i < allItems.length; i++) { allItems[i].classList.remove('active'); }
+    el.classList.add('active');
+    selectedCommunity = name;
+    // Center map on this community
+    centerMapOnCommunity(name);
+    renderMarkers(false);
+  }
+}
+
+function updateStats() {
+  var total = listings.length;
+  var counts = {};
+  STATUS_ORDER.forEach(function(s) { counts[s] = 0; });
+  listings.forEach(function(l) { counts[l.status] = (counts[l.status] || 0) + 1; });
+  var statsParts = STATUS_ORDER.map(function(s) { return s + ':' + counts[s]; });
+  document.getElementById('stats').textContent = '共 ' + total + ' 套 / ' + Object.keys(communities).length + ' 小区 · ' + statsParts.join(' ');
+}
+
+// Modal functions
+function openModal(type, id) {
+  modalTarget = { type: type, id: id };
+  document.getElementById('modal-overlay').classList.add('show');
+  document.getElementById('modal-title').textContent = type === 'community' ? '评价小区: ' + id : '评价房源';
+  var opts = document.querySelectorAll('.status-opt');
+  for (var i = 0; i < opts.length; i++) { opts[i].classList.remove('selected'); }
+  var tags = document.querySelectorAll('.tag-opt');
+  for (var i = 0; i < tags.length; i++) { tags[i].classList.remove('active'); }
+  document.getElementById('modal-notes').value = '';
+  if (type === 'listing') {
+    for (var i = 0; i < listings.length; i++) {
+      if (listings[i].id === id) {
+        selectStatusByValue(listings[i].status);
+        var savedNotes = listings[i].notes || '';
+        if (savedNotes && savedNotes !== '手机APP自动化采集') {
+          document.getElementById('modal-notes').value = savedNotes;
+        }
+        break;
+      }
+    }
+  }
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('show');
+  modalTarget = null;
+}
+
+function selectStatus(el) {
+  var opts = document.querySelectorAll('.status-opt');
+  for (var i = 0; i < opts.length; i++) { opts[i].classList.remove('selected'); }
+  el.classList.add('selected');
+}
+
+function selectStatusByValue(status) {
+  var opts = document.querySelectorAll('.status-opt');
+  for (var i = 0; i < opts.length; i++) { if (opts[i].dataset.status === status) opts[i].classList.add('selected'); }
+}
+
+function toggleQuickTag(el) {
+  var tag = el.getAttribute('data-tag');
+  var ta = document.getElementById('modal-notes');
+  var parts = ta.value.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s; });
+  var i = parts.indexOf(tag);
+  if (i >= 0) { parts.splice(i, 1); el.classList.remove('active'); }
+  else { parts.push(tag); el.classList.add('active'); }
+  ta.value = parts.join(', ');
+}
+
+function saveModal() {
+  var selectedEl = document.querySelector('.status-opt.selected');
+  if (!selectedEl) { alert('请选择状态'); return; }
+  var status = selectedEl.dataset.status;
+  var notes = document.getElementById('modal-notes').value;
+  if (modalTarget.type === 'listing') { saveListingStatus(modalTarget.id, status, notes); }
+  else { saveCommunityStatus(modalTarget.id, status, notes); }
+  closeModal();
+}
+
+function saveListingStatus(id, status, notes) {
+  if (IS_CLOUD) {
+    saveEvalCloud('listing', id, status, notes).catch(function(e) { alert('同步失败: ' + e.message); });
+    return;
+  }
+  fetch('/api/update-listing', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({id: id, status: status, notes: notes})
+  }).then(function(r) { return r.json(); }).then(function(data) {
+    if (data.ok) {
+      var comm = null;
+      for (var i = 0; i < listings.length; i++) {
+        if (listings[i].id === id) {
+          listings[i].status = status; listings[i].notes = notes;
+          comm = cleanName(listings[i].community);
+          break;
+        }
+      }
+      if (comm) refreshListingLocal(comm, id);
+    }
+  });
+}
+
+function saveCommunityStatus(name, status, notes) {
+  if (IS_CLOUD) {
+    saveEvalCloud('community', name, status, notes).catch(function(e) { alert('同步失败: ' + e.message); });
+    return;
+  }
+  fetch('/api/update-community', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name: name, status: status, notes: notes})
+  }).then(function(r) { return r.json(); }).then(function(data) {
+    if (data.ok) {
+      var result = getStatusCounts(name);
+      for (var i = 0; i < result.items.length; i++) { result.items[i].status = status; if (notes) result.items[i].notes = notes; }
+      refreshCommunityLocal(name);
+    }
+  });
+}
+
+// ===== 云端同步（GitHub API）=====
+function b64Encode(str) {
+  return btoa(unescape(encodeURIComponent(str)));
+}
+function b64Decode(b64) {
+  return decodeURIComponent(escape(atob(b64)));
+}
+
+function ghApi(path) {
+  return GH.apiBase + '/repos/' + GH.owner + '/' + GH.repo + '/contents/' + path + '?ref=' + GH.branch;
+}
+
+function ghGetFile(path) {
+  return fetch(ghApi(path), { headers: {'Authorization': 'Bearer ' + GH.token} })
+    .then(function(r) {
+      if (r.status === 404) return null;
+      if (!r.ok) throw new Error('GitHub 读取失败: ' + r.status);
+      return r.json();
+    })
+    .then(function(meta) {
+      if (!meta) return null;
+      return { sha: meta.sha, content: JSON.parse(b64Decode(meta.content)) };
+    });
+}
+
+function ghPutFile(path, obj, sha) {
+  return fetch(ghApi(path), {
+    method: 'PUT',
+    headers: {'Authorization': 'Bearer ' + GH.token, 'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      message: 'sync eval ' + new Date().toISOString(),
+      content: b64Encode(JSON.stringify(obj, null, 2)),
+      sha: sha,
+      branch: GH.branch
+    })
+  }).then(function(r) {
+    if (!r.ok) throw new Error('GitHub 写入失败: ' + r.status);
+    return r.json();
+  });
+}
+
+function loadCloud() {
+  return Promise.all([ghGetFile('communities.json'), ghGetFile('index.json'), ghGetFile('sync/evaluations.json')])
+    .then(function(results) {
+      var commMeta = results[0], idxMeta = results[1], evalMeta = results[2];
+      if (!commMeta || !idxMeta) throw new Error('基础数据缺失');
+      communities = commMeta.content;
+      listings = Object.values(idxMeta.content.listings);
+      if (evalMeta && evalMeta.content) {
+        var evals = evalMeta.content;
+        for (var id in (evals.listings || {})) {
+          var e = evals.listings[id];
+          for (var i = 0; i < listings.length; i++) {
+            if (listings[i].id === id) {
+              listings[i].status = e.status;
+              if (e.notes) listings[i].notes = e.notes;
+              break;
+            }
+          }
+        }
+        for (var name in (evals.communities || {})) {
+          var ce = evals.communities[name];
+          var items = getStatusCounts(name).items;
+          for (var j = 0; j < items.length; j++) {
+            items[j].status = ce.status;
+            if (ce.notes) items[j].notes = ce.notes;
+          }
+        }
+      }
+    });
+}
+
+function saveEvalCloud(type, id, status, notes) {
+  var evals, sha;
+  return ghGetFile('sync/evaluations.json').then(function(meta) {
+    evals = (meta && meta.content) ? meta.content : {listings: {}, communities: {}};
+    sha = meta ? meta.sha : null;
+    var changedAt = new Date().toISOString();
+    if (type === 'listing') {
+      if (!evals.listings) evals.listings = {};
+      evals.listings[id] = { status: status, notes: notes || '', changedAt: changedAt };
+    } else {
+      if (!evals.communities) evals.communities = {};
+      evals.communities[id] = { status: status, notes: notes || '', changedAt: changedAt };
+    }
+    return ghPutFile('sync/evaluations.json', evals, sha);
+  }).then(function() {
+    if (type === 'listing') {
+      var target = null;
+      for (var i = 0; i < listings.length; i++) { if (listings[i].id === id) { listings[i].status = status; listings[i].notes = notes; target = cleanName(listings[i].community); break; } }
+      if (target) refreshListingLocal(target, id);
+    } else {
+      var result = getStatusCounts(id);
+      for (var j = 0; j < result.items.length; j++) { result.items[j].status = status; if (notes) result.items[j].notes = notes; }
+      refreshCommunityLocal(id);
+    }
+  });
+}
+
+// Filter buttons
+var filterBtns = document.querySelectorAll('.filter-btn');
+for (var i = 0; i < filterBtns.length; i++) {
+  (function(btn) {
+    btn.addEventListener('click', function() {
+      var status = btn.dataset.status;
+      if (activeStatuses.has(status)) { activeStatuses.delete(status); btn.classList.remove('active'); }
+      else { activeStatuses.add(status); btn.classList.add('active'); }
+      selectedCommunity = null;
+      renderMarkers(); renderList();
+    });
+  })(filterBtns[i]);
+}
+
+document.getElementById('toggle-excluded').addEventListener('change', function(e) {
+  showExcluded = e.target.checked;
+  selectedCommunity = null;
+  renderMarkers(); renderList();
+});
+
+function zoomIn() { if (map) map.zoomIn(); }
+function zoomOut() { if (map) map.zoomOut(); }
+
+// Initialize
+function init() {
+  if (typeof AMap === 'undefined') {
+    document.getElementById('panel-list').innerHTML = '<div class="error-msg">地图API加载失败</div>';
+    return;
+  }
+  var loadPromise;
+  if (IS_CLOUD) {
+    loadPromise = loadCloud();
+  } else {
+    loadPromise = Promise.all([
+      fetch('communities.json').then(function(r) { return r.json(); }),
+      fetch('index.json').then(function(r) { return r.json(); })
+    ]).then(function(data) {
+      communities = data[0];
+      listings = Object.values(data[1].listings);
+    });
+  }
+    loadPromise.then(function() {
+      // 动态自适应全国任意城市的中心点与视口
+      var defaultCenter = [113.15, 23.05];
+      var validCoords = [];
+      if (communities && typeof communities === 'object') {
+        Object.keys(communities).forEach(function(k) {
+          var c = communities[k];
+          var lng = c.longitude || c.lng;
+          var lat = c.latitude || c.lat;
+          if (lng && lat && lng > 70 && lng < 140 && lat > 3 && lat < 55) {
+            validCoords.push([Number(lng), Number(lat)]);
+          }
+        });
+      }
+      if (validCoords.length > 0) {
+        var sumLng = 0, sumLat = 0;
+        validCoords.forEach(function(pt) { sumLng += pt[0]; sumLat += pt[1]; });
+        defaultCenter = [sumLng / validCoords.length, sumLat / validCoords.length];
+      }
+
+      map = new AMap.Map('container', { zoom: 12, center: defaultCenter });
+      infoWindow = new AMap.InfoWindow({ offset: new AMap.Pixel(0, -30) });
+      renderMarkers(); renderList(); updateStats();
+      if (validCoords.length > 0 && typeof map.setFitView === 'function') {
+        map.setFitView();
+      }
+    }).catch(function(e) {
+      document.getElementById('panel-list').innerHTML = '<div class="error-msg">数据加载失败: ' + e.message + '</div>';
+    });
+  }
+
+  init();
+</script>
+</body>
+</html>

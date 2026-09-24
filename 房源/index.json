@@ -1,0 +1,61 @@
+{
+  "listings": {
+    "FS202609010001": {
+      "id": "FS202609010001",
+      "community": "整租·保利示例花园",
+      "houseType": "3室2厅",
+      "area": "108.50m",
+      "price": "3200 元/月",
+      "district": "天河",
+      "status": "收录",
+      "collectedAt": "2026-09-24T12:00:00+08:00",
+      "last_seen_at": "2026-09-24T12:00:00+08:00",
+      "miss_count": 0,
+      "url": "https://m.lianjia.com/zufang/FS202609010001.html",
+      "notes": "采光通透，近地铁站（示例房源）",
+      "coord": [113.36199, 23.12493],
+      "priceHistory": [
+        {
+          "price": "3200 元/月",
+          "changedAt": "2026-09-24T12:00:00+08:00",
+          "diff": 0
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "收录",
+          "changedAt": "2026-09-24T12:00:00+08:00"
+        }
+      ]
+    },
+    "FS202609010002": {
+      "id": "FS202609010002",
+      "community": "整租·万科示例新城",
+      "houseType": "2室1厅",
+      "area": "88.00m",
+      "price": "2800 元/月",
+      "district": "天河",
+      "status": "考虑中",
+      "collectedAt": "2026-09-24T12:05:00+08:00",
+      "last_seen_at": "2026-09-24T12:05:00+08:00",
+      "miss_count": 0,
+      "url": "https://m.lianjia.com/zufang/FS202609010002.html",
+      "notes": "精装修，业主直租可月付（示例房源）",
+      "coord": [113.37215, 23.13120],
+      "priceHistory": [
+        {
+          "price": "2800 元/月",
+          "changedAt": "2026-09-24T12:05:00+08:00",
+          "diff": 0
+        }
+      ],
+      "statusHistory": [
+        {
+          "status": "考虑中",
+          "changedAt": "2026-09-24T12:05:00+08:00"
+        }
+      ]
+    }
+  },
+  "lastScan": "2026-09-24T12:05:00+08:00"
+}

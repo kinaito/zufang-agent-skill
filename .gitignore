@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+
+# Runtime & Process
+*.pid
+serve/.server.pid
+*.log
+
+# Debug dumps & Screenshots
+*.png
+*.xml
+dump/
+
+# User Private Real Listings (保护用户真实抓取的房源数据，仅保留模板)
+房源/FS*.json
+房源/*.bak
+*.bak
+
+# Sensitive
+.env
+.env.local
+sync/config.js

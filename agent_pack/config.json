@@ -1,0 +1,35 @@
+{
+  "project_meta": {
+    "name": "租房监控与智能决策系统",
+    "version": "1.1.0",
+    "target_city": "广州",
+    "target_district": "天河"
+  },
+  "search_criteria": {
+    "lease_type": "整租",
+    "room_count": ["2居", "3居"],
+    "price_range": {
+      "min": 2500,
+      "max": 4500
+    },
+    "area_min_sqm": 60,
+    "has_elevator": true,
+    "civil_utilities_only": true,
+    "sort_by": "price_asc"
+  },
+  "sub_regions": [
+    {"name": "东圃", "code": "dongpu"},
+    {"name": "车陂", "code": "chebei"},
+    {"name": "棠下", "code": "tangxia"}
+  ],
+  "runtime": {
+    "server_port": 18888,
+    "map_center": [113.4000, 23.1200],
+    "coordinate_system": "GCJ-02",
+    "early_stop_price_threshold": 4500,
+    "ui_safe_bounds": {
+      "top_ratio": 0.16,
+      "bottom_ratio": 0.77
+    }
+  }
+}
